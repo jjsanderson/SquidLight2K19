@@ -1,41 +1,41 @@
+#include<Arduino.h>
+#include<Esp.h>
 #include <FastLED.h>
 
 FASTLED_USING_NAMESPACE
 
-// FastLED "100-lines-of-code" demo reel, showing just a few 
-// of the kinds of animation patterns you can quickly and easily 
-// compose using FastLED.  
+// Based heavily on FastLED '100 line sof code' demo reel,
+// by Mark Kriegsman, December 2014.
 //
-// This example also shows one easy way to define multiple 
-// animations patterns and have them automatically rotate.
-//
-// -Mark Kriegsman, December 2014
+// Lightly hacked by Jonathan Sanderson, December 2019
 
 #if defined(FASTLED_VERSION) && (FASTLED_VERSION < 3001000)
 #warning "Requires FastLED 3.1 or later; check github for latest code."
 #endif
 
-#define DATA_PIN    D1
-//#define CLK_PIN   4
-#define LED_TYPE    WS2811
-#define COLOR_ORDER GRB
-#define NUM_LEDS    50
-CRGB leds[NUM_LEDS];
+#define DATA_PIN_A      D1
+#define DATA_PIN_B      D3
+#define LED_TYPE        WS2811
+#define COLOR_ORDER     GRB
+#define NUM_LEDS_A      50
+#define NUM_LEDS_B      49 // I suck at soldering to NeoPixel strips
 
-#define BRIGHTNESS         255
-#define FRAMES_PER_SECOND  120
+CRGB ledsA[NUM_LEDS_A];
+CRGB ledsB[NUM_LEDS_B];
+
+#define BRIGHTNESS          255
+#define FRAMES_PER_SECOND   120
 
 void setup() {
-  delay(3000); // 3 second delay for recovery
-  
-  // tell FastLED about the LED strip configuration
-  FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-  //FastLED.addLeds<LED_TYPE,DATA_PIN,CLK_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+    delay(2000);    // 2 second delay to complete bootup
 
-  // set master brightness control
-  FastLED.setBrightness(BRIGHTNESS);
+    // Instantiate LED strip
+    FastLED.addLeds<LED_TYPE,DATA_PIN_A,COLOR_ORDER>(ledsA, NUM_LEDS_A).setCorrection(TypicalLEDStrip);
+    FastLED.addLeds<LED_TYPE,DATA_PIN_B,COLOR_ORDER>(ledsB, NUM_LEDS_B).setCorrection(TypicalLEDStrip);
+
+    // Set master brightness control
+    FastLED.setBrightness(BRIGHTNESS);
 }
-
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
 typedef void (*SimplePatternList[])();
@@ -70,7 +70,8 @@ void nextPattern()
 void rainbow() 
 {
   // FastLED's built-in rainbow generator
-  fill_rainbow( leds, NUM_LEDS, gHue, 7);
+  fill_rainbow( ledsA, NUM_LEDS_A, gHue, 7);
+  fill_rainbow( ledsB, NUM_LEDS_B, gHue, 7);
 }
 
 void rainbowWithGlitter() 
@@ -83,24 +84,31 @@ void rainbowWithGlitter()
 void addGlitter( fract8 chanceOfGlitter) 
 {
   if( random8() < chanceOfGlitter) {
-    leds[ random16(NUM_LEDS) ] += CRGB::White;
+    ledsA[ random16(NUM_LEDS_A) ] += CRGB::White;
+    ledsB[ random16(NUM_LEDS_B) ] += CRGB::White;
   }
 }
 
 void confetti() 
 {
   // random colored speckles that blink in and fade smoothly
-  fadeToBlackBy( leds, NUM_LEDS, 10);
-  int pos = random16(NUM_LEDS);
-  leds[pos] += CHSV( gHue + random8(64), 200, 255);
+  fadeToBlackBy( ledsA, NUM_LEDS_A, 10);
+  int pos = random16(NUM_LEDS_A);
+  ledsA[pos] += CHSV( gHue + random8(64), 200, 255);
+  fadeToBlackBy( ledsB, NUM_LEDS_B, 10);
+  pos = random16(NUM_LEDS_B);
+  ledsB[pos] += CHSV( gHue + random8(64), 200, 255);
 }
 
 void sinelon()
 {
   // a colored dot sweeping back and forth, with fading trails
-  fadeToBlackBy( leds, NUM_LEDS, 20);
-  int pos = beatsin16( 13, 0, NUM_LEDS-1 );
-  leds[pos] += CHSV( gHue, 255, 192);
+  fadeToBlackBy( ledsA, NUM_LEDS_A, 20);
+  int pos = beatsin16( 13, 0, NUM_LEDS_A-1 );
+  ledsA[pos] += CHSV( gHue, 255, 192);
+  fadeToBlackBy( ledsB, NUM_LEDS_B, 20);
+  pos = beatsin16( 13, 0, NUM_LEDS_B-1 );
+  ledsB[pos] += CHSV( gHue, 255, 192);
 }
 
 void bpm()
@@ -109,17 +117,26 @@ void bpm()
   uint8_t BeatsPerMinute = 62;
   CRGBPalette16 palette = PartyColors_p;
   uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
-  for( int i = 0; i < NUM_LEDS; i++) { //9948
-    leds[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
+  for( int i = 0; i < NUM_LEDS_A; i++) { //9948
+    ledsA[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
+  }
+  for( int i = 0; i < NUM_LEDS_B; i++) { //9948
+    ledsB[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
   }
 }
 
 void juggle() {
   // eight colored dots, weaving in and out of sync with each other
-  fadeToBlackBy( leds, NUM_LEDS, 20);
+  fadeToBlackBy( ledsA, NUM_LEDS_A, 20);
   byte dothue = 0;
   for( int i = 0; i < 8; i++) {
-    leds[beatsin16( i+7, 0, NUM_LEDS-1 )] |= CHSV(dothue, 200, 255);
+    ledsA[beatsin16( i+7, 0, NUM_LEDS_A-1 )] |= CHSV(dothue, 200, 255);
+    dothue += 32;
+  }
+  fadeToBlackBy( ledsB, NUM_LEDS_B, 20);
+  dothue = 0;
+  for( int i = 0; i < 8; i++) {
+    ledsB[beatsin16( i+7, 0, NUM_LEDS_B-1 )] |= CHSV(dothue, 200, 255);
     dothue += 32;
   }
 }
