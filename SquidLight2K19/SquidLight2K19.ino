@@ -13,6 +13,7 @@ FASTLED_USING_NAMESPACE
 #warning "Requires FastLED 3.1 or later; check github for latest code."
 #endif
 
+// CONFIG LED STRIPS
 #define DATA_PIN_A      D1
 #define DATA_PIN_B      D3
 #define LED_TYPE        WS2811
@@ -26,6 +27,15 @@ CRGB ledsB[NUM_LEDS_B];
 #define BRIGHTNESS          255
 #define FRAMES_PER_SECOND   120
 
+// CONFIG INPUTS
+#define DIALPIN         A0
+#define BUTTONPIN       D5
+int buttonState = 0;
+int dialValue = 0;
+
+// offset calcs
+int gHueOffsetRate = 20;
+
 void setup() {
     delay(2000);    // 2 second delay to complete bootup
 
@@ -35,6 +45,9 @@ void setup() {
 
     // Set master brightness control
     FastLED.setBrightness(BRIGHTNESS);
+
+    pinMode(BUTTONPIN, INPUT_PULLUP);
+    pinMode(DIALPIN, INPUT);
 }
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
@@ -54,9 +67,20 @@ void loop()
   // insert a delay to keep the framerate modest
   FastLED.delay(1000/FRAMES_PER_SECOND); 
 
+  // Update hue angle rate from the dial
+  dialValue = analogRead(DIALPIN);
+  gHueOffsetRate = map(dialValue, 0, 1024, 0, 50);
+
   // do some periodic updates
-  EVERY_N_MILLISECONDS( 20 ) { gHue++; } // slowly cycle the "base color" through the rainbow
-  EVERY_N_SECONDS( 10 ) { nextPattern(); } // change patterns periodically
+  EVERY_N_MILLISECONDS( gHueOffsetRate ) { gHue++; } // Cycle base hue at rate determined by dial
+  
+  // Switch pattern on button press
+  buttonState = digitalRead(BUTTONPIN);
+  if (buttonState == LOW) {
+      nextPattern();
+  }
+  
+  //   EVERY_N_SECONDS( 10 ) { nextPattern(); } // change patterns periodically
 }
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
