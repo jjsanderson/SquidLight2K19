@@ -30,13 +30,19 @@ CRGB ledsB[NUM_LEDS_B];
 // CONFIG INPUTS
 #define DIALPIN         A0
 #define BUTTONPIN       D5
-int buttonState = 0;
+int buttonState = LOW;
 int dialValue = 0;
+
+// We're going to debounce the button
+int lastButtonState = LOW;
+unsigned long lastDebounceTime = 0;
+unsigned long debounceDelay = 100;
 
 // offset calcs
 int gHueOffsetRate = 20;
 
 void setup() {
+    Serial.begin(115200);
     delay(2000);    // 2 second delay to complete bootup
 
     // Instantiate LED strip
@@ -69,16 +75,35 @@ void loop()
 
   // Update hue angle rate from the dial
   dialValue = analogRead(DIALPIN);
-  gHueOffsetRate = map(dialValue, 0, 1024, 0, 50);
+  gHueOffsetRate = map(dialValue, 0, 1024, 1, 100);
+  EVERY_N_SECONDS( 1 ) { Serial.println(gHueOffsetRate); }
 
   // do some periodic updates
   EVERY_N_MILLISECONDS( gHueOffsetRate ) { gHue++; } // Cycle base hue at rate determined by dial
   
   // Switch pattern on button press
-  buttonState = digitalRead(BUTTONPIN);
-  if (buttonState == LOW) {
-      nextPattern();
+  // Check if button has been pressed
+  // Using code from Arduino docs here: https://www.arduino.cc/en/tutorial/debounce
+  int reading = digitalRead(BUTTONPIN);
+  if (reading != lastButtonState) {
+    Serial.println("Button pressed!");
+    // Reset the debounce timer
+    lastDebounceTime = millis();
   }
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    // Whatever the reading is at, it's been there for longer than the debounce
+    // delay, so take it as actual current state:
+    if (reading != buttonState) {
+      buttonState = reading;
+
+      if (buttonState == LOW) {
+        Serial.println("Next pattern!");
+        nextPattern();  
+      }    
+    }
+  }
+  lastButtonState = reading;
   
   //   EVERY_N_SECONDS( 10 ) { nextPattern(); } // change patterns periodically
 }
