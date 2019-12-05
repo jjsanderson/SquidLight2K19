@@ -39,6 +39,7 @@ unsigned long lastDebounceTime = 0;
 unsigned long debounceDelay = 100;
 
 // offset calcs
+unsigned long lastHueOffsetTime = 0;
 int gHueOffsetRate = 20;
 
 void setup() {
@@ -78,9 +79,17 @@ void loop()
   gHueOffsetRate = map(dialValue, 0, 1024, 1, 100);
   EVERY_N_SECONDS( 1 ) { Serial.println(gHueOffsetRate); }
 
-  // do some periodic updates
-  EVERY_N_MILLISECONDS( gHueOffsetRate ) { gHue++; } // Cycle base hue at rate determined by dial
-  
+  // We've lots of things running on manual timers, so call this once for the loop:
+  unsigned long timeNow = millis();
+
+  // Cycle the colours, if it's time
+  // EVERY_N_MILLISECONDS( gHueOffsetRate ) { gHue++; } // Cycle base hue at rate determined by dial
+  if ( (timeNow - lastHueOffsetTime) > gHueOffsetRate ) {
+    gHue++;
+    // Reset the lastHueOffsetTime
+    lastHueOffsetTime = timeNow;
+  }
+
   // Switch pattern on button press
   // Check if button has been pressed
   // Using code from Arduino docs here: https://www.arduino.cc/en/tutorial/debounce
@@ -88,10 +97,10 @@ void loop()
   if (reading != lastButtonState) {
     Serial.println("Button pressed!");
     // Reset the debounce timer
-    lastDebounceTime = millis();
+    lastDebounceTime = timeNow;
   }
 
-  if ((millis() - lastDebounceTime) > debounceDelay) {
+  if ((timeNow - lastDebounceTime) > debounceDelay) {
     // Whatever the reading is at, it's been there for longer than the debounce
     // delay, so take it as actual current state:
     if (reading != buttonState) {
